@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Huffman Tree Builder</title>
+<style>
+:root{--bg:#f2f5f6;--panel:#fff;--ink:#14212b;--mute:#5c6b76;--line:#d5dde2;--zero:#0b6e6e;--one:#b4540a;--leaf:#e3f1f1;--node:#e9edf0;--hi:#fff3c4;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0e161c;--panel:#16212a;--ink:#e6edf1;--mute:#93a3ae;--line:#2a3945;--zero:#4fc3c3;--one:#f0a35e;--leaf:#173a3d;--node:#1f2d37;--hi:#4a4120}}
+:root[data-theme="dark"]{--bg:#0e161c;--panel:#16212a;--ink:#e6edf1;--mute:#93a3ae;--line:#2a3945;--zero:#4fc3c3;--one:#f0a35e;--leaf:#173a3d;--node:#1f2d37;--hi:#4a4120}
+*{box-sizing:border-box}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif}
+main{max-width:1100px;margin:0 auto;padding:28px 18px 48px}
+h1{font:600 clamp(26px,4vw,38px)/1.15 Georgia,"Times New Roman",serif;margin:0 0 6px;letter-spacing:-.01em}
+.sub{color:var(--mute);margin:0 0 22px;max-width:60ch}
+.input{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:22px}
+input[type=text]{flex:1 1 280px;font:inherit;font-size:18px;padding:12px 14px;border:1.5px solid var(--line);border-radius:8px;background:var(--panel);color:var(--ink)}
+input[type=text]:focus,button:focus-visible,.row:focus-visible{outline:3px solid var(--zero);outline-offset:1px}
+button{font:inherit;padding:12px 16px;border-radius:8px;border:1.5px solid var(--line);background:var(--panel);color:var(--ink);cursor:pointer}
+button.primary{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.stats{display:flex;gap:26px;flex-wrap:wrap;margin-bottom:18px}
+.stat b{display:block;font:600 24px Georgia,serif}.stat span{color:var(--mute);font-size:14px}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px;margin-bottom:18px}
+.panel h2{font-size:17px;margin:0 0 10px;font-weight:600}
+.treewrap{overflow-x:auto;padding-bottom:6px}
+svg{display:block;margin:0 auto;max-width:none}
+.edge{stroke-width:2;fill:none;transition:stroke-width .15s,opacity .15s}
+.e0{stroke:var(--zero)}.e1{stroke:var(--one)}
+.lbl{font:700 13px ui-monospace,Menlo,Consolas,monospace}
+.l0{fill:var(--zero)}.l1{fill:var(--one)}
+.nd{fill:var(--node);stroke:var(--line);stroke-width:1.5}
+.lf{fill:var(--leaf);stroke:var(--zero);stroke-width:1.5}
+.t{fill:var(--ink);font:600 15px ui-monospace,Menlo,Consolas,monospace;text-anchor:middle}
+.tf{fill:var(--mute);font:12px system-ui,sans-serif;text-anchor:middle}
+.dim .edge{opacity:.18}.dim .nd,.dim .lf{opacity:.35}
+.dim .on.edge{opacity:1;stroke-width:4}.dim .on.nd,.dim .on.lf{opacity:1;stroke:var(--ink);stroke-width:2.5}
+.cols{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:18px}
+@media(max-width:760px){.cols{grid-template-columns:1fr}}
+table{width:100%;border-collapse:collapse;font-size:15px}
+th{text-align:left;font-weight:600;color:var(--mute);font-size:13px;padding:4px 8px;border-bottom:1px solid var(--line)}
+td{padding:6px 8px;border-bottom:1px solid var(--line);font-family:ui-monospace,Menlo,Consolas,monospace}
+.row{cursor:pointer}.row:hover td,.row.sel td{background:var(--hi)}
+.bits{font:15px/1.7 ui-monospace,Menlo,Consolas,monospace;word-break:break-all}
+.b0{color:var(--zero)}.b1{color:var(--one)}
+.out{font:16px ui-monospace,Menlo,Consolas,monospace;white-space:pre-wrap;word-break:break-all}
+.ok{color:var(--zero);font-weight:600}
+ol{margin:0;padding-left:20px;font:14px/1.7 ui-monospace,Menlo,Consolas,monospace}
+.hint{color:var(--mute);font-size:13px;margin:8px 0 0}
+textarea{width:100%;font:15px/1.5 ui-monospace,Menlo,Consolas,monospace;padding:10px 12px;border:1.5px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);resize:vertical}
+textarea:focus{outline:3px solid var(--zero);outline-offset:1px}
+.bad{color:var(--one);font-weight:600}
+</style>
+</head>
+<body>
+<main>
+<h1>Huffman Tree Builder</h1>
+<p class="sub">Type a string. Frequent characters get short codes, rare ones get long codes. Click a row in the code table to trace its path through the tree.</p>
+
+<div class="input">
+<input id="in" type="text" value="mynameisanjishnu" aria-label="String to encode" autocomplete="off" spellcheck="false">
+<button class="primary" id="go">Build tree</button>
+<button id="theme" aria-label="Toggle dark mode">Theme</button>
+</div>
+
+<div class="stats" id="stats"></div>
+
+<section class="panel"><h2>Huffman tree</h2>
+<div class="treewrap"><svg id="tree" role="img" aria-label="Huffman tree"></svg></div>
+<p class="hint">Left edge = <b class="b0">0</b>, right edge = <b class="b1">1</b>. Leaves show the character and its count; internal nodes show the combined count.</p>
+</section>
+
+<div class="cols">
+<section class="panel"><h2>Code table</h2>
+<table><thead><tr><th>Char</th><th>Count</th><th>Code</th></tr></thead><tbody id="tbl"></tbody></table></section>
+<section class="panel"><h2>Merge steps</h2><ol id="steps"></ol></section>
+</div>
+
+<section class="panel"><h2>Encoded bits</h2><div class="bits" id="enc"></div>
+<p><button id="copy">Copy bits</button></p></section>
+<section class="panel"><h2>Decode it yourself</h2>
+<p class="hint" style="margin-top:0">Paste the encoded bits below (or edit a few to see what breaks). The tree above is used to decode them.</p>
+<textarea id="paste" rows="3" placeholder="Paste 0s and 1s here" aria-label="Bits to decode" spellcheck="false"></textarea>
+<p><button class="primary" id="dgo">Decode</button></p>
+<div class="out" id="dec"></div><p class="hint" id="chk"></p></section>
+</main>
+
+<script>
+const $=id=>document.getElementById(id);
+const show=c=>c===' '?'\u2423':c;
+const esc=s=>s.replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));
+
+function build(str){
+  const chars=[...str], freq=new Map();
+  chars.forEach(c=>freq.set(c,(freq.get(c)||0)+1));
+  let id=0;
+  let heap=[...freq].sort((a,b)=>a[0]<b[0]?-1:1).map(([ch,f])=>({id:id++,ch,f,l:null,r:null}));
+  const steps=[];
+  while(heap.length>1){
+    heap.sort((a,b)=>a.f-b.f||a.id-b.id);
+    const l=heap.shift(), r=heap.shift();
+    const n={id:id++,ch:null,f:l.f+r.f,l,r};
+    const name=x=>x.ch!==null?show(x.ch):'\u25CF';
+    steps.push(`${name(l)}(${l.f}) + ${name(r)}(${r.f}) \u2192 ${n.f}`);
+    heap.push(n);
+  }
+  const root=heap[0], codes=new Map(), paths=new Map();
+  (function walk(n,code,path){
+    path=[...path,n.id];
+    if(!n.l&&!n.r){codes.set(n.ch,code||'0');paths.set(n.ch,path);return}
+    walk(n.l,code+'0',path);walk(n.r,code+'1',path);
+  })(root,'',[]);
+  return{chars,freq,root,codes,paths,steps};
+}
+
+function decode(root,bits){
+  if(!root.l&&!root.r)return{out:bits.split('').map(()=>root.ch).join(''),left:0,badLeaf:/1/.test(bits)};
+  let out='',cur=root,left=0;
+  for(const b of bits){cur=b==='0'?cur.l:cur.r;left++;if(!cur.l&&!cur.r){out+=cur.ch;cur=root;left=0}}
+  return{out,left,badLeaf:false};
+}
+
+function doDecode(){
+  if(!cur)return;
+  const raw=$('paste').value, bits=raw.replace(/\s+/g,'');
+  const dec=$('dec'),chk=$('chk');
+  if(!bits){dec.textContent='';chk.innerHTML='<span class="bad">Paste some bits first.</span>';return}
+  if(/[^01]/.test(bits)){dec.textContent='';chk.innerHTML='<span class="bad">Only 0 and 1 are allowed. Remove any other characters and try again.</span>';return}
+  const r=decode(cur.root,bits);
+  dec.textContent=r.out;
+  const orig=$('in').value;
+  let msg;
+  if(r.badLeaf)msg='<span class="bad">With one distinct character every code is 0, so a 1 is invalid.</span>';
+  else if(r.out===orig&&!r.left)msg='<span class="ok">Matches the original input.</span>';
+  else{
+    msg='<span class="bad">Does not match the original input.</span>';
+    if(r.left)msg+=` The last ${r.left} bit${r.left>1?'s':''} did not reach a leaf, so they produced no character.`;
+  }
+  chk.innerHTML=msg;
+}
+
+function draw(root){
+  const GX=62,GY=84,PAD=34;let leaf=0,maxD=0;
+  (function lay(n,d){
+    n.d=d;maxD=Math.max(maxD,d);
+    if(!n.l&&!n.r){n.x=leaf++*GX;return}
+    lay(n.l,d+1);lay(n.r,d+1);n.x=(n.l.x+n.r.x)/2;
+  })(root,0);
+  const W=Math.max(leaf-1,0)*GX+PAD*2, H=maxD*GY+PAD*2+14;
+  const X=n=>n.x+PAD, Y=n=>n.d*GY+PAD;
+  let edges='',nodes='';
+  (function emit(n){
+    if(n.l){
+      [[n.l,'0'],[n.r,'1']].forEach(([c,b])=>{
+        const x1=X(n),y1=Y(n),x2=X(c),y2=Y(c);
+        edges+=`<path class="edge e${b}" data-n="${c.id}" d="M${x1} ${y1+18}L${x2} ${y2-18}"/>`;
+        const mx=(x1+x2)/2+(b==='0'?-9:9),my=(y1+y2)/2;
+        edges+=`<text class="lbl l${b}" x="${mx}" y="${my}" text-anchor="middle">${b}</text>`;
+        emit(c);
+      });
+    }
+    const isLeaf=!n.l&&!n.r;
+    nodes+=`<g data-n="${n.id}">`+(isLeaf
+      ?`<rect class="lf" data-n="${n.id}" x="${X(n)-22}" y="${Y(n)-18}" width="44" height="42" rx="8"/><text class="t" x="${X(n)}" y="${Y(n)+2}">${esc(show(n.ch))}</text><text class="tf" x="${X(n)}" y="${Y(n)+18}">${n.f}</text>`
+      :`<circle class="nd" data-n="${n.id}" cx="${X(n)}" cy="${Y(n)}" r="18"/><text class="t" x="${X(n)}" y="${Y(n)+5}">${n.f}</text>`)+`</g>`;
+  })(root);
+  const svg=$('tree');
+  svg.setAttribute('viewBox',`0 0 ${W} ${H}`);svg.setAttribute('width',W);svg.setAttribute('height',H);
+  svg.innerHTML=edges+nodes;
+}
+
+let cur=null;
+function highlight(ch){
+  const svg=$('tree');
+  svg.querySelectorAll('.on').forEach(e=>e.classList.remove('on'));
+  document.querySelectorAll('.row.sel').forEach(e=>e.classList.remove('sel'));
+  if(ch===null){svg.classList.remove('dim');return}
+  svg.classList.add('dim');
+  cur.paths.get(ch).forEach(id=>svg.querySelectorAll(`[data-n="${id}"]`).forEach(e=>{if(e.tagName!=='g')e.classList.add('on')}));
+  const row=document.querySelector(`.row[data-c="${CSS.escape(ch)}"]`);if(row)row.classList.add('sel');
+}
+
+function run(){
+  const str=$('in').value;
+  if(!str){
+    ['stats','tbl','steps','enc','dec','chk'].forEach(i=>$(i).innerHTML='');
+    $('tree').innerHTML='';$('tree').setAttribute('width',0);$('tree').setAttribute('height',0);
+    $('paste').value='';cur=null;
+    $('chk').textContent='Enter at least one character to build a tree.';return;
+  }
+  const r=cur=build(str);
+  draw(r.root);
+  const enc=r.chars.map(c=>r.codes.get(c)).join('');
+  const orig=r.chars.length*8, saved=Math.round((1-enc.length/orig)*100);
+  $('stats').innerHTML=[[r.chars.length,'characters'],[r.freq.size,'distinct'],[orig,'bits as 8-bit text'],[enc.length,'bits with Huffman'],[saved+'%','smaller']]
+    .map(([a,b])=>`<div class="stat"><b>${a}</b><span>${b}</span></div>`).join('');
+  const rows=[...r.codes].sort((a,b)=>r.freq.get(b[0])-r.freq.get(a[0])||a[1].length-b[1].length);
+  $('tbl').innerHTML=rows.map(([c,code])=>`<tr class="row" tabindex="0" data-c="${esc(c)}"><td>${esc(show(c))}</td><td>${r.freq.get(c)}</td><td>${code.replace(/./g,m=>`<span class="b${m}">${m}</span>`)}</td></tr>`).join('');
+  document.querySelectorAll('.row').forEach(row=>{
+    const ch=row.dataset.c;
+    const on=()=>highlight(ch),off=()=>highlight(null);
+    row.onmouseenter=on;row.onmouseleave=off;row.onfocus=on;row.onblur=off;
+  });
+  $('steps').innerHTML=r.steps.length?r.steps.map(s=>`<li>${esc(s)}</li>`).join(''):'<li>Only one distinct character, so there is nothing to merge. It gets the code 0.</li>';
+  $('enc').innerHTML=enc.replace(/./g,m=>`<span class="b${m}">${m}</span>`);
+  $('paste').value='';$('dec').textContent='';
+  $('chk').textContent='Equal counts can be merged in different orders, so another implementation may give different but equally short codes.';
+}
+
+$('dgo').onclick=doDecode;
+$('copy').onclick=async()=>{
+  const bits=$('enc').textContent,b=$('copy');
+  try{await navigator.clipboard.writeText(bits);b.textContent='Copied'}
+  catch(e){const r=document.createRange();r.selectNodeContents($('enc'));const s=getSelection();s.removeAllRanges();s.addRange(r);b.textContent='Selected, press Ctrl+C'}
+  setTimeout(()=>b.textContent='Copy bits',1800);
+};
+$('go').onclick=run;
+$('in').addEventListener('input',run);
+$('in').addEventListener('keydown',e=>{if(e.key==='Enter')run()});
+$('theme').onclick=()=>{
+  const d=document.documentElement,dark=matchMedia('(prefers-color-scheme:dark)').matches;
+  const now=d.dataset.theme||(dark?'dark':'light');
+  d.dataset.theme=now==='dark'?'light':'dark';
+};
+run();
+</script>
+<script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/v4bc70e2c01a94c73b74392e4234840661791215815920" integrity="sha512-L0ha0OXavK/8okipN9F8BtP84dg9DUhPERbBXzwI6dgTA55d2+yweo3pn5CSFYs45/r8md2+xvUPtTdvTNRfjA==" data-cf-beacon='{"version":"2024.11.0","token":"a6d0f371503742a1a5b95500083e25d8","r":1,"spa":2}' crossorigin="anonymous"></script>
+</body>
+</html>
